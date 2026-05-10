@@ -1,0 +1,39 @@
+services:
+  # SQL Server Database Service
+  db:
+    image: mcr.microsoft.com/mssql/server:2019-latest
+    container_name: sql_server_container
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=YourStrongPassword123
+      - MSSQL_PID=Developer
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD", "/opt/mssql-tools/bin/sqlcmd", "-S", "localhost", "-U", "sa", "-P", "YourStrongPassword123", "-Q", "SELECT 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 15
+
+  # Flask Web Application Service
+  web:
+    build: .
+    container_name: flask_app_container
+    ports:
+      - "5000:5000"
+    environment:
+      # Connection string uses the service name 'db' as the host
+      - SQLALCHEMY_DATABASE_URI=mssql+pyodbc://sa:YourStrongPassword123@db:1433/LibraryDB?driver=ODBC+Driver+17+for+SQL+Server
+      - FLASK_APP=app/main.py
+      - FLASK_ENV=development
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - .:/app
+
+volumes:
+  # Persistent storage for SQL Server data
+  sqlserver_data:
